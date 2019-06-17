@@ -60,7 +60,6 @@ int main(int /*argc*/, char ** /*argv*/)
     pd.getFeatures2(&pdf);
 
     // simple calls, getting structure back
-    vk::PhysicalDeviceFeatures2 a = pd.getFeatures2();
     vk::PhysicalDeviceFeatures2 b = pd.getFeatures2(vk::DispatchLoaderStatic());
     
     // complex calls, getting StructureChain back
@@ -75,7 +74,7 @@ int main(int /*argc*/, char ** /*argv*/)
     vk::PhysicalDeviceVariablePointerFeatures & d1 = d.get<vk::PhysicalDeviceVariablePointerFeatures>();
 
     auto t1 = d.get<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
-
+    vk::PhysicalDeviceFeatures2 a = pd.getFeatures2();
     using StructureChain = vk::StructureChain<vk::QueueFamilyProperties2, vk::QueueFamilyCheckpointPropertiesNV>;
     using AllocatorType = std::vector<StructureChain>::allocator_type;
     auto qfd = pd.getQueueFamilyProperties2<StructureChain, AllocatorType>(vk::DispatchLoaderStatic());

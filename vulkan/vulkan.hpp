@@ -98,7 +98,11 @@ static_assert( VK_HEADER_VERSION ==  109 , "Wrong VK_HEADER_VERSION!" );
 #  endif
 # endif
 #endif
-
+template <class Allocator = std::allocator<typename std::remove_const<T>::type>>
+    ArrayProxy(std::vector<typename std::remove_const<T>::type, Allocator> const& data)
+      : m_count(static_cast<uint32_t>(data.size()))
+      , m_ptr(data.data())
+    {}
 #if !defined(VULKAN_HPP_INLINE)
 # if defined(__clang___)
 #  if __has_attribute(always_inline)
