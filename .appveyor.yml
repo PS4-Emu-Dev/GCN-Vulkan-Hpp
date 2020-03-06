@@ -1,0 +1,40 @@
+os:
+  - Visual Studio 2017
+
+build:
+  verbosity: detailed
+
+configuration:
+  - Debug
+
+environment:
+  matrix:
+    - GENERATOR: Visual Studio 14 2015
+      GENERATOR_ARCH: Win32
+      RAW_PLATFORM: x86
+    - GENERATOR: Visual Studio 14 2015
+      GENERATOR_ARCH: x64
+      RAW_PLATFORM: amd64
+    - GENERATOR: Visual Studio 15 2017
+      GENERATOR_ARCH: Win32
+      RAW_PLATFORM: x86
+    - GENERATOR: Visual Studio 15 2017
+      GENERATOR_ARCH: x64
+      RAW_PLATFORM: amd64
+
+install:
+  - git submodule update --init --recursive
+
+
+before_build:
+  - call "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvarsall.bat" %RAW_PLATFORM%
+  - cd C:\projects\Vulkan-Hpp
+
+
+build_script:
+  - mkdir appveyor-build
+  - cd appveyor-build
+  - cmake ..\tests -G "%GENERATOR%" -A %GENERATOR_ARCH% -DTESTS_BUILD_WITH_LOCAL_VULKAN_HPP=1 -DTESTS_BUILD_ONLY_DYNAMIC=1
+
+test_script:
+  - cmake --build . --config %CONFIGURATION%
