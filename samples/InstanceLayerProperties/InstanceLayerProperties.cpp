@@ -24,12 +24,6 @@
 static char const* AppName = "InstanceLayerProperties";
 static char const* EngineName = "Vulkan.hpp";
 
-void extract_version(uint32_t version, uint32_t &major, uint32_t &minor, uint32_t &patch) {
-  major = version >> 22;
-  minor = (version >> 12) & 0x3ff;
-  patch = version & 0xfff;
-}
-
 int main(int /*argc*/, char ** /*argv*/)
 {
   try
@@ -54,12 +48,12 @@ int main(int /*argc*/, char ** /*argv*/)
 
     /* VULKAN_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

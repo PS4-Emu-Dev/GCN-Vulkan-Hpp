@@ -17,12 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(Events)
 
 set(HEADERS
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   Events.cpp
-  ../utils/utils.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -34,4 +32,4 @@ add_executable(Events
 )
 
 set_target_properties(Events PROPERTIES FOLDER "Samples")
-target_link_libraries(Events PUBLIC "${Vulkan_LIBRARIES}")
+target_link_libraries(Events PRIVATE utils)

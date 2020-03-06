@@ -17,18 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(PushDescriptors)
 
 set(HEADERS
-  ../utils/geometries.hpp
-  ../utils/math.hpp
-  ../utils/shaders.hpp
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   PushDescriptors.cpp
-  ../utils/math.cpp
-  ../utils/shaders.cpp
-  ../utils/utils.cpp
-  ../../glslang/StandAlone/ResourceLimits.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -40,5 +32,4 @@ add_executable(PushDescriptors
 )
 
 set_target_properties(PushDescriptors PROPERTIES FOLDER "Samples")
-target_include_directories(PushDescriptors PUBLIC ${CMAKE_SOURCE_DIR}/glslang)
-target_link_libraries(PushDescriptors PUBLIC glslang SPIRV "${Vulkan_LIBRARIES}")
+target_link_libraries(PushDescriptors PRIVATE utils)

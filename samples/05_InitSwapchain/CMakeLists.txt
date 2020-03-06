@@ -17,12 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(05_InitSwapchain)
 
 set(HEADERS
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   05_InitSwapchain.cpp
-  ../utils/utils.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -34,4 +32,4 @@ add_executable(05_InitSwapchain
 )
 
 set_target_properties(05_InitSwapchain PROPERTIES FOLDER "Samples")
-target_link_libraries(05_InitSwapchain "${Vulkan_LIBRARIES}")
+target_link_libraries(05_InitSwapchain PRIVATE utils)

@@ -1,4 +1,4 @@
-# Copyright(c) 2019, NVIDIA CORPORATION. All rights reserved.
+# Copyright(c) 2020, NVIDIA CORPORATION. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,22 +14,31 @@
 
 cmake_minimum_required(VERSION 3.2)
 
-project(CreateDebugReportCallback)
+project(utils)
 
 set(HEADERS
+  math.hpp
+  shaders.hpp
+  utils.hpp
 )
 
 set(SOURCES
-  CreateDebugReportCallback.cpp
+  math.cpp
+  shaders.cpp
+  utils.cpp
 )
 
 source_group(headers FILES ${HEADERS})
 source_group(sources FILES ${SOURCES})
 
-add_executable(CreateDebugReportCallback
-  ${HEADERS}
+add_library(utils 
   ${SOURCES}
+  ${HEADERS}
 )
 
-set_target_properties(CreateDebugReportCallback PROPERTIES FOLDER "Samples")
-target_link_libraries(CreateDebugReportCallback PUBLIC "${Vulkan_LIBRARIES}")
+target_link_libraries(utils PUBLIC glfw)
+target_link_libraries(utils PUBLIC glslang)
+target_link_libraries(utils PUBLIC glslang-default-resource-limits)
+target_link_libraries(utils PUBLIC SPIRV)
+target_compile_definitions(utils PUBLIC VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
+

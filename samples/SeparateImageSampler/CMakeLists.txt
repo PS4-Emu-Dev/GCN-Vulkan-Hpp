@@ -17,18 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(SeparateImageSampler)
 
 set(HEADERS
-  ../utils/geometries.hpp
-  ../utils/math.hpp
-  ../utils/shaders.hpp
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   SeparateImageSampler.cpp
-  ../utils/math.cpp
-  ../utils/shaders.cpp
-  ../utils/utils.cpp
-  ../../glslang/StandAlone/ResourceLimits.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -40,5 +32,4 @@ add_executable(SeparateImageSampler
 )
 
 set_target_properties(SeparateImageSampler PROPERTIES FOLDER "Samples")
-target_include_directories(SeparateImageSampler PUBLIC ${CMAKE_SOURCE_DIR}/glslang)
-target_link_libraries(SeparateImageSampler PUBLIC glslang SPIRV "${Vulkan_LIBRARIES}")
+target_link_libraries(SeparateImageSampler PRIVATE utils)

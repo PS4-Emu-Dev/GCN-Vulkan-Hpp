@@ -36,13 +36,23 @@ else(MSVC)
   add_compile_options(-Wall)
 endif(MSVC)
 
-file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Vulkan-Docs/xml/vk.xml vk_spec)
+set(CMAKE_CXX_STANDARD 14)
+
+if (NOT DEFINED VULKAN_HPP_VULKAN_HEADERS_SRC_DIR)
+  set(VULKAN_HPP_VULKAN_HEADERS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Vulkan-Headers")
+endif()
+file(TO_NATIVE_PATH ${VULKAN_HPP_VULKAN_HEADERS_SRC_DIR}/registry/vk.xml vk_spec)
 string(REPLACE "\\" "\\\\" vk_spec ${vk_spec})
 add_definitions(-DVK_SPEC="${vk_spec}")
 
-file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/vulkan/vulkan.hpp vulkan_hpp)
+if (NOT DEFINED VULKAN_HPP_PATH)
+  set(VULKAN_HPP_PATH "${CMAKE_CURRENT_SOURCE_DIR}/vulkan")
+endif()
+file(TO_NATIVE_PATH ${VULKAN_HPP_PATH}/vulkan.hpp vulkan_hpp)
 string(REPLACE "\\" "\\\\" vulkan_hpp ${vulkan_hpp})
 add_definitions(-DVULKAN_HPP_FILE="${vulkan_hpp}")
+include_directories(${VULKAN_HPP_PATH})
+
 
 set(HEADERS
   VulkanHppGenerator.hpp
@@ -52,12 +62,16 @@ set(SOURCES
   VulkanHppGenerator.cpp
 )
 
+if (NOT DEFINED VULKAN_HPP_TINYXML2_SRC_DIR)
+  set(VULKAN_HPP_TINYXML2_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tinyxml2")
+endif()
+
 set(TINYXML2_SOURCES
-  tinyxml2/tinyxml2.cpp
+  ${VULKAN_HPP_TINYXML2_SRC_DIR}/tinyxml2.cpp
 )
 
 set(TINYXML2_HEADERS
-  tinyxml2/tinyxml2.h
+  ${VULKAN_HPP_TINYXML2_SRC_DIR}/tinyxml2.h
 )
 
 source_group(headers FILES ${HEADERS})
@@ -73,17 +87,35 @@ add_executable(VulkanHppGenerator
   ${TINYXML2_HEADERS}
 )
 
-set_property(TARGET VulkanHppGenerator PROPERTY CXX_STANDARD 11)
+set_property(TARGET VulkanHppGenerator PROPERTY CXX_STANDARD 14)
 
-target_include_directories(VulkanHppGenerator PRIVATE "${CMAKE_SOURCE_DIR}/tinyxml2")
+target_include_directories(VulkanHppGenerator PRIVATE ${VULKAN_HPP_TINYXML2_SRC_DIR})
 
-option (SAMPLES_BUILD OFF)
+option (VULKAN_HPP_RUN_GENERATOR "Run the HPP generator" OFF)
+if (VULKAN_HPP_RUN_GENERATOR)
+  add_custom_command(
+    COMMAND VulkanHppGenerator
+    OUTPUT "${vulkan_hpp}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMENT "run VulkanHppGenerator"
+    DEPENDS VulkanHppGenerator "${vk_spec}")
+
+  add_custom_target(build_vulkan_hpp ALL
+    DEPENDS "${vulkan_hpp}" "${vk_spec}")
+endif()
+
+option (SAMPLES_BUILD "Build samples" OFF)
 if (SAMPLES_BUILD)
+  add_subdirectory(glfw)
   add_subdirectory(glslang)
   add_subdirectory(samples)
 endif (SAMPLES_BUILD)
 
-option (TESTS_BUILD OFF)
+option (TESTS_BUILD "Build tests" OFF)
 if (TESTS_BUILD)
   add_subdirectory(tests)
 endif (TESTS_BUILD)
+
+if (${VULKAN_HPP_INSTALL})
+  install(FILES ${vulkan_hpp} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vulkan)
+endif()

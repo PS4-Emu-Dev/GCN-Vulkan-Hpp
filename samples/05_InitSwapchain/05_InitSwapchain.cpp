@@ -26,38 +26,38 @@ int main(int /*argc*/, char ** /*argv*/)
 {
   try
   {
-    vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, vk::su::getInstanceExtensions());
+    vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, {}, vk::su::getInstanceExtensions());
 #if !defined(NDEBUG)
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
-    assert(!physicalDevices.empty());
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
-    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevices[0].getQueueFamilyProperties();
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
     uint32_t graphicsQueueFamilyIndex = vk::su::findGraphicsQueueFamilyIndex(queueFamilyProperties);
 
     /* VULKAN_HPP_KEY_START */
 
     uint32_t width = 64;
     uint32_t height = 64;
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-    HWND window = vk::su::initializeWindow(AppName, AppName, width, height);
-
-    vk::UniqueSurfaceKHR surface = instance->createWin32SurfaceKHRUnique(vk::Win32SurfaceCreateInfoKHR(vk::Win32SurfaceCreateFlagsKHR(), GetModuleHandle(nullptr), window));
-#else
-#pragma error "unhandled platform"
-#endif
+    vk::su::WindowData window = vk::su::createWindow(AppName, {width, height});
+    vk::UniqueSurfaceKHR surface;
+    {
+      VkSurfaceKHR _surface;
+      glfwCreateWindowSurface(instance.get(), window.handle, nullptr, &_surface);
+      vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE> _deleter(instance.get());
+      surface = vk::UniqueSurfaceKHR(_surface, _deleter);
+    }
 
     // determine a queueFamilyIndex that suports present
     // first check if the graphicsQueueFamiliyIndex is good enough
-    size_t presentQueueFamilyIndex = physicalDevices[0].getSurfaceSupportKHR(static_cast<uint32_t>(graphicsQueueFamilyIndex), surface.get()) ? graphicsQueueFamilyIndex : queueFamilyProperties.size();
+    size_t presentQueueFamilyIndex = physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(graphicsQueueFamilyIndex), surface.get()) ? graphicsQueueFamilyIndex : queueFamilyProperties.size();
     if (presentQueueFamilyIndex == queueFamilyProperties.size())
     {
       // the graphicsQueueFamilyIndex doesn't support present -> look for an other family index that supports both graphics and present
       for (size_t i = 0; i < queueFamilyProperties.size(); i++)
       {
-        if ((queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) && physicalDevices[0].getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get()))
+        if ((queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) && physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get()))
         {
           graphicsQueueFamilyIndex = vk::su::checked_cast<uint32_t>(i);
           presentQueueFamilyIndex = i;
@@ -69,7 +69,7 @@ int main(int /*argc*/, char ** /*argv*/)
         // there's nothing like a single family index that supports both graphics and present -> look for an other family index that supports present
         for (size_t i = 0; i < queueFamilyProperties.size(); i++)
         {
-          if (physicalDevices[0].getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get()))
+          if (physicalDevice.getSurfaceSupportKHR(static_cast<uint32_t>(i), surface.get()))
           {
             presentQueueFamilyIndex = i;
             break;
@@ -83,14 +83,14 @@ int main(int /*argc*/, char ** /*argv*/)
     }
 
     // create a device
-    vk::UniqueDevice device = vk::su::createDevice(physicalDevices[0], graphicsQueueFamilyIndex, vk::su::getDeviceExtensions());
+    vk::UniqueDevice device = vk::su::createDevice(physicalDevice, graphicsQueueFamilyIndex, vk::su::getDeviceExtensions());
 
     // get the supported VkFormats
-    std::vector<vk::SurfaceFormatKHR> formats = physicalDevices[0].getSurfaceFormatsKHR(surface.get());
+    std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface.get());
     assert(!formats.empty());
     vk::Format format = (formats[0].format == vk::Format::eUndefined) ? vk::Format::eB8G8R8A8Unorm : formats[0].format;
 
-    vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevices[0].getSurfaceCapabilitiesKHR(surface.get());
+    vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface.get());
     VkExtent2D swapchainExtent;
     if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max())
     {
@@ -141,23 +141,17 @@ int main(int /*argc*/, char ** /*argv*/)
       imageViews.push_back(device->createImageViewUnique(imageViewCreateInfo));
     }
 
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-    DestroyWindow(window);
-#else
-#pragma error "unhandled platform"
-#endif
-
     // Note: No need to explicitly destroy the ImageViews or the swapChain, as the corresponding destroy
     // functions are called by the destructor of the UniqueImageView and the UniqueSwapChainKHR on leaving this scope.
 
     /* VULKAN_HPP_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

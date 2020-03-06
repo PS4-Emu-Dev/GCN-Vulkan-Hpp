@@ -17,12 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(CopyBlitImage)
 
 set(HEADERS
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   CopyBlitImage.cpp
-  ../utils/utils.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -34,4 +32,4 @@ add_executable(CopyBlitImage
 )
 
 set_target_properties(CopyBlitImage PROPERTIES FOLDER "Samples")
-target_link_libraries(CopyBlitImage PUBLIC "${Vulkan_LIBRARIES}")
+target_link_libraries(CopyBlitImage PRIVATE utils)

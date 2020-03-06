@@ -14,23 +14,28 @@
 
 cmake_minimum_required(VERSION 3.2)
 
-find_package(Vulkan REQUIRED)
-
 project(Vulkan-Hpp_Samples)
 
-option (SAMPLES_BUILD_WITH_LOCAL_VULKAN_HPP OFF)
+option (SAMPLES_BUILD_WITH_LOCAL_VULKAN_HPP "Build with local Vulkan headers" OFF)
+option (SAMPLES_BUILD_ONLY_DYNAMIC "Build only dynamic" OFF)
+
+if(NOT (SAMPLES_BUILD_ONLY_DYNAMIC AND SAMPLES_BUILD_WITH_LOCAL_VULKAN_HPP))
+  find_package(Vulkan REQUIRED)
+endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
   add_definitions(-DNOMINMAX -DVK_USE_PLATFORM_WIN32_KHR)
+elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
 else()
-  error("unhandled platform !")
+  message(FATAL_ERROR, "Vulkan-Hpp: unhandled platform for samples!")
 endif()
 
 FILE (GLOB linkunits ${CMAKE_CURRENT_SOURCE_DIR}/*)
 
 if (SAMPLES_BUILD_WITH_LOCAL_VULKAN_HPP)
-  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../Vulkan-Docs/include")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/..")
+  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../Vulkan-Headers/include")
 else()
   include_directories("${Vulkan_INCLUDE_DIRS}")
 endif()

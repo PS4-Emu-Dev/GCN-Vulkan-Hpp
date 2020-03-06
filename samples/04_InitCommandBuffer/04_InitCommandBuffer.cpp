@@ -28,14 +28,13 @@ int main(int /*argc*/, char ** /*argv*/)
   {
     vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName);
 #if !defined(NDEBUG)
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
-    assert(!physicalDevices.empty());
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
-    uint32_t graphicsQueueFamilyIndex = vk::su::findGraphicsQueueFamilyIndex(physicalDevices[0].getQueueFamilyProperties());
-    vk::UniqueDevice device = vk::su::createDevice(physicalDevices[0], graphicsQueueFamilyIndex);
+    uint32_t graphicsQueueFamilyIndex = vk::su::findGraphicsQueueFamilyIndex(physicalDevice.getQueueFamilyProperties());
+    vk::UniqueDevice device = vk::su::createDevice(physicalDevice, graphicsQueueFamilyIndex);
 
     /* VULKAN_HPP_KEY_START */
 
@@ -43,14 +42,14 @@ int main(int /*argc*/, char ** /*argv*/)
     vk::UniqueCommandPool commandPool = device->createCommandPoolUnique(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), graphicsQueueFamilyIndex));
 
     // allocate a CommandBuffer from the CommandPool
-    std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1));
+    vk::UniqueCommandBuffer commandBuffer = std::move(device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).front());
 
     // Note: No need to explicitly free the CommandBuffer or destroy the CommandPool, as the corresponding free and destroy
     // functions are called by the destructor of the UniqueCommandBuffer and the UniqueCommandPool on leaving this scope.
 
     /* VULKAN_HPP_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);

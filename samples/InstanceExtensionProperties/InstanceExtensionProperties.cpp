@@ -28,24 +28,28 @@ int main(int /*argc*/, char ** /*argv*/)
   {
     /* VULKAN_KEY_START */
 
-    std::vector<vk::ExtensionProperties> instanceExtensionProperties = vk::enumerateInstanceExtensionProperties();
+    std::vector<vk::ExtensionProperties> extensionProperties = vk::enumerateInstanceExtensionProperties();
+
+    // sort the extensions alphabetically
+
+    std::sort(extensionProperties.begin(), extensionProperties.end(), [](vk::ExtensionProperties const& a, vk::ExtensionProperties const& b) { return strcmp(a.extensionName, b.extensionName) < 0; });
 
     std::cout << "Instance Extensions:" << std::endl;
-    for (auto const& instanceExtensionProperty : instanceExtensionProperties)
+    for (auto const& ep : extensionProperties)
     {
-      std::cout << instanceExtensionProperty.extensionName << ":" << std::endl;
-      std::cout << "\tVersion: " << instanceExtensionProperty.specVersion << std::endl;
+      std::cout << ep.extensionName << ":" << std::endl;
+      std::cout << "\tVersion: " << ep.specVersion << std::endl;
       std::cout << std::endl;
     }
 
     /* VULKAN_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

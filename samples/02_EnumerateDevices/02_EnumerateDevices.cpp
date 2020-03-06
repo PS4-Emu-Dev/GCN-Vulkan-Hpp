@@ -28,20 +28,20 @@ int main(int /*argc*/, char ** /*argv*/)
   {
     vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName);
 #if !defined(NDEBUG)
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
     /* VULKAN_HPP_KEY_START */
 
     // enumerate the physicalDevices
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
     // Note: PhysicalDevices are not created, but just enumerated. Therefore, there is nothing like a UniquePhysicalDevice.
     // A PhysicalDevice is unique by definition, and there's no need to destroy it.
 
     /* VULKAN_HPP_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);

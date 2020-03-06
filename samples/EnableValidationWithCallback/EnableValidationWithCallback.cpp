@@ -24,51 +24,63 @@
 static char const* AppName = "EnableValidationWithCallback";
 static char const* EngineName = "Vulkan.hpp";
 
-PFN_vkCreateDebugReportCallbackEXT  pfnVkCreateDebugReportCallbackEXT;
-PFN_vkDestroyDebugReportCallbackEXT pfnVkDestroyDebugReportCallbackEXT;
+PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
+PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
 
-VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
+VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger)
 {
-  return pfnVkCreateDebugReportCallbackEXT(instance, pCreateInfo, pAllocator, pCallback);
+  return pfnVkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pMessenger);
 }
 
-VKAPI_ATTR void VKAPI_CALL vkDestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
+VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, VkAllocationCallbacks const * pAllocator)
 {
-  pfnVkDestroyDebugReportCallbackEXT(instance, callback, pAllocator);
+  return pfnVkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
 }
 
 
-VKAPI_ATTR VkBool32 VKAPI_CALL dbgFunc(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT /*objType*/, uint64_t /*srcObject*/, size_t /*location*/, int32_t msgCode, const char *pLayerPrefix, const char *pMsg, void * /*pUserData*/)
+VkBool32 debugMessageFunc(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+  VkDebugUtilsMessengerCallbackDataEXT const * pCallbackData, void * /*pUserData*/)
 {
-  std::ostringstream message;
+  std::string message;
 
-  switch (flags)
+  message += vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(messageSeverity)) + ": " + vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(messageTypes)) + ":\n";
+  message += std::string("\t") + "messageIDName   = <" + pCallbackData->pMessageIdName + ">\n";
+  message += std::string("\t") + "messageIdNumber = " + std::to_string(pCallbackData->messageIdNumber) + "\n";
+  message += std::string("\t") + "message         = <" + pCallbackData->pMessage + ">\n";
+  if (0 < pCallbackData->queueLabelCount)
   {
-    case VK_DEBUG_REPORT_INFORMATION_BIT_EXT:
-      message << "INFORMATION: ";
-      break;
-    case VK_DEBUG_REPORT_WARNING_BIT_EXT:
-      message << "WARNING: ";
-      break;
-    case VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT:
-      message << "PERFORMANCE WARNING: ";
-      break;
-    case VK_DEBUG_REPORT_ERROR_BIT_EXT:
-      message << "ERROR: ";
-      break;
-    case VK_DEBUG_REPORT_DEBUG_BIT_EXT:
-      message << "DEBUG: ";
-      break;
-    default:
-      message << "unknown flag (" << flags << "): ";
-      break;
+    message += std::string("\t") + "Queue Labels:\n";
+    for (uint8_t i = 0; i < pCallbackData->queueLabelCount; i++)
+    {
+      message += std::string("\t\t") + "labelName = <" + pCallbackData->pQueueLabels[i].pLabelName + ">\n";
+    }
   }
-  message << "[" << pLayerPrefix << "] Code " << msgCode << " : " << pMsg;
+  if (0 < pCallbackData->cmdBufLabelCount)
+  {
+    message += std::string("\t") + "CommandBuffer Labels:\n";
+    for (uint8_t i = 0; i < pCallbackData->cmdBufLabelCount; i++)
+    {
+      message += std::string("\t\t") + "labelName = <" + pCallbackData->pCmdBufLabels[i].pLabelName + ">\n";
+    }
+  }
+  if (0 < pCallbackData->objectCount)
+  {
+    for (uint8_t i = 0; i < pCallbackData->objectCount; i++)
+    {
+      message += std::string("\t") + "Object " + std::to_string(i) + "\n";
+      message += std::string("\t\t") + "objectType   = " + vk::to_string(static_cast<vk::ObjectType>(pCallbackData->pObjects[i].objectType)) + "\n";
+      message += std::string("\t\t") + "objectHandle = " + std::to_string(pCallbackData->pObjects[i].objectHandle) + "\n";
+      if (pCallbackData->pObjects[i].pObjectName)
+      {
+        message += std::string("\t\t") + "objectName   = <" + pCallbackData->pObjects[i].pObjectName + ">\n";
+      }
+  }
+}
 
 #ifdef _WIN32
-  MessageBox(NULL, message.str().c_str(), "Alert", MB_OK);
+  MessageBox(NULL, message.c_str(), "Alert", MB_OK);
 #else
-  std::cout << message.str() << std::endl;
+  std::cout << message << std::endl;
 #endif
 
   return false;
@@ -87,6 +99,13 @@ int main(int /*argc*/, char ** /*argv*/)
 {
   try
   {
+#if (VULKAN_HPP_DISPATCH_LOADER_DYNAMIC == 1)
+    // initialize the DipatchLoaderDynamic to use
+    static vk::DynamicLoader dl;
+    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+#endif
+
     std::vector<vk::LayerProperties> instanceLayerProperties = vk::enumerateInstanceLayerProperties();
 
     /* VULKAN_KEY_START */
@@ -102,17 +121,39 @@ int main(int /*argc*/, char ** /*argv*/)
 
     /* Enable debug callback extension */
     std::vector<char const*> instanceExtensionNames;
-    instanceExtensionNames.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+    instanceExtensionNames.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
-    vk::ApplicationInfo applicationInfo(AppName, 1, EngineName, 1, VK_API_VERSION_1_0);
+    vk::ApplicationInfo applicationInfo(AppName, 1, EngineName, 1, VK_API_VERSION_1_1);
     vk::InstanceCreateInfo instanceCreateInfo( vk::InstanceCreateFlags(), &applicationInfo, vk::su::checked_cast<uint32_t>(instanceLayerNames.size()), instanceLayerNames.data(),
       vk::su::checked_cast<uint32_t>(instanceExtensionNames.size()) , instanceExtensionNames.data() );
     vk::UniqueInstance instance = vk::createInstanceUnique(instanceCreateInfo);
 
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
-    assert(!physicalDevices.empty());
+#if (VULKAN_HPP_DISPATCH_LOADER_DYNAMIC == 1)
+    // initialize function pointers for instance
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
+#endif
 
-    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevices[0].getQueueFamilyProperties();
+    pfnVkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(instance->getProcAddr("vkCreateDebugUtilsMessengerEXT"));
+    if (!pfnVkCreateDebugUtilsMessengerEXT)
+    {
+      std::cout << "GetInstanceProcAddr: Unable to find pfnVkCreateDebugUtilsMessengerEXT function." << std::endl;
+      exit(1);
+    }
+
+    pfnVkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(instance->getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
+    if (!pfnVkDestroyDebugUtilsMessengerEXT)
+    {
+      std::cout << "GetInstanceProcAddr: Unable to find pfnVkDestroyDebugUtilsMessengerEXT function." << std::endl;
+      exit(1);
+    }
+
+    vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError);
+    vk::DebugUtilsMessageTypeFlagsEXT messageTypeFlags(vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = instance->createDebugUtilsMessengerEXTUnique(vk::DebugUtilsMessengerCreateInfoEXT({}, severityFlags, messageTypeFlags, &debugMessageFunc));
+
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
+
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
     assert(!queueFamilyProperties.empty());
 
     auto qfpIt = std::find_if(queueFamilyProperties.begin(), queueFamilyProperties.end(), [](vk::QueueFamilyProperties const& qfp) { return !!(qfp.queueFlags & vk::QueueFlagBits::eGraphics); });
@@ -121,22 +162,7 @@ int main(int /*argc*/, char ** /*argv*/)
 
     float queuePriority = 0.0f;
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), queueFamilyIndex, 1, &queuePriority);
-    vk::UniqueDevice device = physicalDevices[0].createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo));
-
-    pfnVkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(instance->getProcAddr("vkCreateDebugReportCallbackEXT"));
-    if (!pfnVkCreateDebugReportCallbackEXT)
-    {
-      std::cout << "GetInstanceProcAddr: Unable to find vkCreateDebugReportCallbackEXT function." << std::endl;
-      exit(1);
-    }
-    pfnVkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(instance->getProcAddr("vkDestroyDebugReportCallbackEXT"));
-    if (!pfnVkDestroyDebugReportCallbackEXT)
-    {
-      std::cout << "GetInstanceProcAddr: Unable to find vkDestroyDebugReportCallbackEXT function." << std::endl;
-      exit(1);
-    }
-
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = instance->createDebugReportCallbackEXTUnique(vk::DebugReportCallbackCreateInfoEXT(vk::DebugReportFlagBitsEXT::eError | vk::DebugReportFlagBitsEXT::eWarning, dbgFunc));
+    vk::UniqueDevice device = physicalDevice.createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo));
 
     // Create a command pool (not a UniqueCommandPool, for testing purposes!
     vk::CommandPool commandPool = device->createCommandPool(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), queueFamilyIndex));
@@ -148,12 +174,12 @@ int main(int /*argc*/, char ** /*argv*/)
 
     /* VULKAN_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

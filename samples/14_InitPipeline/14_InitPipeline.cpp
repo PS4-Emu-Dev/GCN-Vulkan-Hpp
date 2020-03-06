@@ -30,22 +30,21 @@ int main(int /*argc*/, char ** /*argv*/)
 {
   try
   {
-    vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, vk::su::getInstanceExtensions());
+    vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, {}, vk::su::getInstanceExtensions());
 #if !defined(NDEBUG)
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
-    assert(!physicalDevices.empty());
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
-    vk::su::SurfaceData surfaceData(instance, AppName, AppName, vk::Extent2D(500, 500));
+    vk::su::SurfaceData surfaceData(instance, AppName, vk::Extent2D(500, 500));
 
-    std::pair<uint32_t, uint32_t> graphicsAndPresentQueueFamilyIndex = vk::su::findGraphicsAndPresentQueueFamilyIndex(physicalDevices[0], *surfaceData.surface);
-    vk::UniqueDevice device = vk::su::createDevice(physicalDevices[0], graphicsAndPresentQueueFamilyIndex.first, vk::su::getDeviceExtensions());
+    std::pair<uint32_t, uint32_t> graphicsAndPresentQueueFamilyIndex = vk::su::findGraphicsAndPresentQueueFamilyIndex(physicalDevice, *surfaceData.surface);
+    vk::UniqueDevice device = vk::su::createDevice(physicalDevice, graphicsAndPresentQueueFamilyIndex.first, vk::su::getDeviceExtensions());
 
-    vk::UniqueRenderPass renderPass = vk::su::createRenderPass(device, vk::su::pickSurfaceFormat(physicalDevices[0].getSurfaceFormatsKHR(surfaceData.surface.get())).format, vk::Format::eD16Unorm);
+    vk::UniqueRenderPass renderPass = vk::su::createRenderPass(device, vk::su::pickSurfaceFormat(physicalDevice.getSurfaceFormatsKHR(surfaceData.surface.get())).format, vk::Format::eD16Unorm);
 
-    vk::UniqueDescriptorSetLayout descriptorSetLayout = vk::su::createDescriptorSetLayout(device, { {vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex} });
+    vk::UniqueDescriptorSetLayout descriptorSetLayout = vk::su::createDescriptorSetLayout(device, { {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex} });
     vk::UniquePipelineLayout pipelineLayout = device->createPipelineLayoutUnique(vk::PipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), 1, &descriptorSetLayout.get()));
 
     glslang::InitializeProcess();
@@ -95,7 +94,12 @@ int main(int /*argc*/, char ** /*argv*/)
       1.0f                                          // lineWidth
     );
 
-    vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo;
+    vk::PipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo
+    (
+      vk::PipelineMultisampleStateCreateFlags(),  // flags
+      vk::SampleCountFlagBits::e1                 // rasterizationSamples
+                                                  // other values can be default
+    );
 
     vk::StencilOpState stencilOpState(vk::StencilOp::eKeep, vk::StencilOp::eKeep, vk::StencilOp::eKeep, vk::CompareOp::eAlways);
     vk::PipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo
@@ -129,7 +133,7 @@ int main(int /*argc*/, char ** /*argv*/)
       vk::LogicOp::eNoOp,                         // logicOp
       1,                                          // attachmentCount
       &pipelineColorBlendAttachmentState,         // pAttachments
-      { { (1.0f, 1.0f, 1.0f, 1.0f) } }            // blendConstants
+      { { 1.0f, 1.0f, 1.0f, 1.0f } }              // blendConstants
     );
 
     vk::DynamicState dynamicStates[2] = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
@@ -156,19 +160,13 @@ int main(int /*argc*/, char ** /*argv*/)
     vk::UniquePipeline pipeline = device->createGraphicsPipelineUnique(nullptr, graphicsPipelineCreateInfo);
 
     /* VULKAN_KEY_END */
-
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
-    DestroyWindow(surfaceData.window);
-#else
-#pragma error "unhandled platform"
-#endif
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError &err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

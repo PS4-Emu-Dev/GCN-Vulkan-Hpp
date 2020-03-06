@@ -28,13 +28,12 @@ int main(int /*argc*/, char ** /*argv*/)
   {
     vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName);
 #if !defined(NDEBUG)
-    vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
-    assert(!physicalDevices.empty());
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
-    vk::UniqueDevice device = vk::su::createDevice(physicalDevices[0], vk::su::findGraphicsQueueFamilyIndex(physicalDevices[0].getQueueFamilyProperties()));
+    vk::UniqueDevice device = vk::su::createDevice(physicalDevice, vk::su::findGraphicsQueueFamilyIndex(physicalDevice.getQueueFamilyProperties()));
 
     /* VULKAN_HPP_KEY_START */
 
@@ -50,12 +49,12 @@ int main(int /*argc*/, char ** /*argv*/)
 
     /* VULKAN_HPP_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

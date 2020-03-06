@@ -17,18 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(MultipleSets)
 
 set(HEADERS
-  ../utils/geometries.hpp
-  ../utils/math.hpp
-  ../utils/shaders.hpp
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   MultipleSets.cpp
-  ../utils/math.cpp
-  ../utils/shaders.cpp
-  ../utils/utils.cpp
-  ../../glslang/StandAlone/ResourceLimits.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -40,5 +32,4 @@ add_executable(MultipleSets
 )
 
 set_target_properties(MultipleSets PROPERTIES FOLDER "Samples")
-target_include_directories(MultipleSets PUBLIC ${CMAKE_SOURCE_DIR}/glslang)
-target_link_libraries(MultipleSets PUBLIC glslang SPIRV "${Vulkan_LIBRARIES}")
+target_link_libraries(MultipleSets PRIVATE utils)

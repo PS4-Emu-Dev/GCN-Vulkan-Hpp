@@ -15,6 +15,8 @@
 // VulkanHpp Tests : StructureChain
 //                   Compile-test for StructureChains
 
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+
 #include "vulkan/vulkan.hpp"
 #include <iostream>
 
@@ -29,13 +31,24 @@ static char const* EngineName = "Vulkan.hpp";
 // unknow compiler... just ignore the warnings for yourselves ;)
 #endif
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
+template <typename T>
+void unused(T const&)
+{}
+
 int main(int /*argc*/, char ** /*argv*/)
 {
   try
   {
+    vk::DynamicLoader dl;
+    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+
     vk::ApplicationInfo appInfo(AppName, 1, EngineName, 1, VK_API_VERSION_1_1);
     vk::UniqueInstance instance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &appInfo));
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
+    vk::PhysicalDevice physicalDevice = instance->enumeratePhysicalDevices().front();
 
     // some valid StructureChains
     vk::StructureChain<vk::PhysicalDeviceProperties2> sc0;
@@ -46,40 +59,60 @@ int main(int /*argc*/, char ** /*argv*/)
     vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceIDProperties, vk::PhysicalDevicePushDescriptorPropertiesKHR> sc6;
     vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceIDProperties, vk::PhysicalDeviceMaintenance3Properties, vk::PhysicalDevicePushDescriptorPropertiesKHR> sc7;
 
-    // some not valid StructureChains
+    // some invalid StructureChains
     //vk::StructureChain<vk::PhysicalDeviceIDProperties, vk::PhysicalDeviceMaintenance3Properties> x;
     //vk::StructureChain<vk::PhysicalDeviceIDProperties, vk::PhysicalDeviceMaintenance3Properties, vk::PhysicalDevicePushDescriptorPropertiesKHR> x;
     //vk::StructureChain<vk::PhysicalDeviceIDProperties, vk::PhysicalDevicePushDescriptorPropertiesKHR, vk::PhysicalDeviceMaintenance3Properties> x;
     //vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceIDProperties, vk::PhysicalDeviceIDProperties> x;
     //vk::StructureChain<vk::PhysicalDeviceIDProperties, vk::PhysicalDeviceProperties2> x;
 
-    vk::PhysicalDevice & pd = physicalDevices[0];
+    // unlink a struct from a StructureChain
+    sc7.unlink<vk::PhysicalDeviceMaintenance3Properties>();
+
+    // some invalid unlink calls
+    //sc7.unlink<vk::PhysicalDeviceMaintenance3Properties>();   // assertion fires on trying to unlink some already unlinked structure
+    //sc7.unlink<vk::PhysicalDeviceProperties2>();
+    //sc1.unlink<vk::PhysicalDeviceMaintenance3Properties>();
+
+    // re-link a struct
+    sc7.relink<vk::PhysicalDeviceMaintenance3Properties>();
+
+    // invalid re-linking
+    //sc7.relink<vk::PhysicalDeviceProperties2>();
+    //sc1.relink<vk::PhysicalDeviceMaintenance3Properties>();
+    //sc1.relink<vk::PhysicalDeviceIDProperties>();             // assertion fires on trying to relink some structure that hasn't been unlinked
 
     // simple call, passing structures in
     vk::PhysicalDeviceFeatures2 pdf;
-    pd.getFeatures2(&pdf);
+    physicalDevice.getFeatures2(&pdf);
 
     // simple calls, getting structure back
-    vk::PhysicalDeviceFeatures2 b = pd.getFeatures2(vk::DispatchLoaderStatic());
-    
+    vk::PhysicalDeviceFeatures2 a = physicalDevice.getFeatures2();
+    unused(a);
+
     // complex calls, getting StructureChain back
-    auto c = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
+    auto c = physicalDevice.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
     vk::PhysicalDeviceFeatures2 & c0 = c.get<vk::PhysicalDeviceFeatures2>();
-    vk::PhysicalDeviceVariablePointerFeatures & c1 = c.get<vk::PhysicalDeviceVariablePointerFeatures>();
+    unused(c0);
 
     auto t0 = c.get<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
+    unused(t0);
     
-    auto d = pd.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>(vk::DispatchLoaderStatic());
+    auto d = physicalDevice.getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
     vk::PhysicalDeviceFeatures2 & d0 = d.get<vk::PhysicalDeviceFeatures2>();
+    unused(d0);
     vk::PhysicalDeviceVariablePointerFeatures & d1 = d.get<vk::PhysicalDeviceVariablePointerFeatures>();
+    unused(d1);
 
     auto t1 = d.get<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVariablePointerFeatures>();
-    vk::PhysicalDeviceFeatures2 a = pd.getFeatures2();
+    unused(t1);
+
     using StructureChain = vk::StructureChain<vk::QueueFamilyProperties2, vk::QueueFamilyCheckpointPropertiesNV>;
     using AllocatorType = std::vector<StructureChain>::allocator_type;
-    auto qfd = pd.getQueueFamilyProperties2<StructureChain, AllocatorType>(vk::DispatchLoaderStatic());
+    auto qfd = physicalDevice.getQueueFamilyProperties2<StructureChain, AllocatorType>(VULKAN_HPP_DEFAULT_DISPATCHER);
+    unused(qfd);
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError const& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);

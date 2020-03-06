@@ -41,6 +41,13 @@ int main(int /*argc*/, char ** /*argv*/)
     desiredVersionString += ".";
     desiredVersionString += std::to_string(desiredMinorVersion);
 
+#if (VULKAN_HPP_DISPATCH_LOADER_DYNAMIC == 1)
+    // initialize the DipatchLoaderDynamic to use
+    static vk::DynamicLoader dl;
+    PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+    VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+#endif
+
     // Determine what API version is available
     uint32_t apiVersion = vk::enumerateInstanceVersion();
 
@@ -54,9 +61,9 @@ int main(int /*argc*/, char ** /*argv*/)
       (loader_major_version == desiredMajorVersion && loader_minor_version >= desiredMinorVersion))
     {
       // Create the instance
-      vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, vk::su::getInstanceExtensions(), desiredVersion);
+      vk::UniqueInstance instance = vk::su::createInstance(AppName, EngineName, {}, vk::su::getInstanceExtensions(), desiredVersion);
 #if !defined(NDEBUG)
-      vk::UniqueDebugReportCallbackEXT debugReportCallback = vk::su::createDebugReportCallback(instance);
+      vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger(instance);
 #endif
 
       // Get the list of physical devices
@@ -89,12 +96,12 @@ int main(int /*argc*/, char ** /*argv*/)
 
     /* VULKAN_KEY_END */
   }
-  catch (vk::SystemError err)
+  catch (vk::SystemError& err)
   {
     std::cout << "vk::SystemError: " << err.what() << std::endl;
     exit(-1);
   }
-  catch (std::runtime_error err)
+  catch (std::runtime_error& err)
   {
     std::cout << "std::runtime_error: " << err.what() << std::endl;
     exit(-1);

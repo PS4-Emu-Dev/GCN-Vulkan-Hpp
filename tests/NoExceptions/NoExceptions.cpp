@@ -17,17 +17,26 @@
 //                     Note: this is _no_ functional test!! Don't ever code this way!!
 
 #define VULKAN_HPP_NO_EXCEPTIONS
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include "vulkan/vulkan.hpp"
 #include <iostream>
 
-static char const* AppName = "DeviceFunctions";
+static char const* AppName = "NoExceptions";
 static char const* EngineName = "Vulkan.hpp";
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 int main(int /*argc*/, char ** /*argv*/)
 {
+  vk::DynamicLoader dl;
+  PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
+
   vk::ApplicationInfo appInfo(AppName, 1, EngineName, 1, VK_API_VERSION_1_1);
   vk::UniqueInstance instance = vk::createInstanceUnique(vk::InstanceCreateInfo({}, &appInfo)).value;
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*instance);
+
   std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices().value;
   assert(!physicalDevices.empty());
 
@@ -45,12 +54,13 @@ int main(int /*argc*/, char ** /*argv*/)
   float queuePriority = 0.0f;
   vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), static_cast<uint32_t>(graphicsQueueFamilyIndex), 1, &queuePriority);
   vk::UniqueDevice device = physicalDevices[0].createDeviceUnique(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), 1, &deviceQueueCreateInfo)).value;
+  VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
 
   // create a UniqueCommandPool to allocate a CommandBuffer from
   vk::UniqueCommandPool commandPool = device->createCommandPoolUnique(vk::CommandPoolCreateInfo(vk::CommandPoolCreateFlags(), deviceQueueCreateInfo.queueFamilyIndex)).value;
 
   // allocate a CommandBuffer from the CommandPool
-  std::vector<vk::UniqueCommandBuffer> commandBuffers = device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).value;
+  vk::UniqueCommandBuffer commandBuffer = std::move(device->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo(commandPool.get(), vk::CommandBufferLevel::ePrimary, 1)).value.front());
 
   return 0;
 }

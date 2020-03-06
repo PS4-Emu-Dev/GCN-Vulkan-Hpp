@@ -17,12 +17,10 @@ cmake_minimum_required(VERSION 3.2)
 project(10_InitRenderPass)
 
 set(HEADERS
-  ../utils/utils.hpp
 )
 
 set(SOURCES
   10_InitRenderPass.cpp
-  ../utils/utils.cpp
 )
 
 source_group(headers FILES ${HEADERS})
@@ -34,4 +32,4 @@ add_executable(10_InitRenderPass
 )
 
 set_target_properties(10_InitRenderPass PROPERTIES FOLDER "Samples")
-target_link_libraries(10_InitRenderPass "${Vulkan_LIBRARIES}")
+target_link_libraries(10_InitRenderPass PRIVATE utils)
