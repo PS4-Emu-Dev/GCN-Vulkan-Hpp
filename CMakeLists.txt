@@ -30,13 +30,30 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(VulkanHppGenerator)
 
+find_program(CLANG_FORMAT_EXECUTABLE NAMES clang-format)
+
+if(CLANG_FORMAT_EXECUTABLE)
+  # get the clang-format version string
+  execute_process(COMMAND ${CLANG_FORMAT_EXECUTABLE} "--version" OUTPUT_VARIABLE clangFormatVersion)
+  # filter out the actual version
+  string(REGEX MATCH [0123456789.]+ clangFormatVersion ${clangFormatVersion})
+  # we need at least version 10.0.0 !
+  if (clangFormatVersion VERSION_LESS 10.0.0)
+	message(WARNING " Found too old clang-format version <" ${clangFormatVersion} ">, we need version 10 and up to nicely format vulkan.hpp")
+  else()
+	add_definitions(-DCLANG_FORMAT_EXECUTABLE="${CLANG_FORMAT_EXECUTABLE}")
+  endif()
+else()
+  message(WARNING " Could not find clang-format version 10 and up. Generated vulkan.hpp will not be nicely formatted.")
+endif()
+
 if(MSVC)
-  add_compile_options(/W4)
+  add_compile_options(/W4 /permissive-)
 else(MSVC)
   add_compile_options(-Wall)
 endif(MSVC)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 11)
 
 if (NOT DEFINED VULKAN_HPP_VULKAN_HEADERS_SRC_DIR)
   set(VULKAN_HPP_VULKAN_HEADERS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Vulkan-Headers")
@@ -106,15 +123,20 @@ endif()
 
 option (SAMPLES_BUILD "Build samples" OFF)
 if (SAMPLES_BUILD)
+  # external libraries
+  add_subdirectory(glm)
+  set(GLFW_BUILD_EXAMPLES OFF)
+  set(GLFW_BUILD_TESTS OFF)
   add_subdirectory(glfw)
   add_subdirectory(glslang)
+  # samples
   add_subdirectory(samples)
-endif (SAMPLES_BUILD)
+endif ()
 
 option (TESTS_BUILD "Build tests" OFF)
 if (TESTS_BUILD)
   add_subdirectory(tests)
-endif (TESTS_BUILD)
+endif ()
 
 if (${VULKAN_HPP_INSTALL})
   install(FILES ${vulkan_hpp} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/vulkan)

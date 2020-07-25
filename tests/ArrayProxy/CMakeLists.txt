@@ -14,21 +14,24 @@
 
 cmake_minimum_required(VERSION 3.2)
 
-project(ArrayCopy)
+if (NOT TESTS_BUILD_ONLY_DYNAMIC)
+	project(ArrayProxy)
 
-set(HEADERS
-)
+	set(HEADERS
+	)
 
-set(SOURCES
-  ArrayCopy.cpp
-)
+	set(SOURCES
+	  ArrayProxy.cpp
+	)
 
-source_group(headers FILES ${HEADERS})
-source_group(sources FILES ${SOURCES})
+	source_group(headers FILES ${HEADERS})
+	source_group(sources FILES ${SOURCES})
 
-add_executable(ArrayCopy
-  ${HEADERS}
-  ${SOURCES}
-)
+	add_executable(ArrayProxy
+	  ${HEADERS}
+	  ${SOURCES}
+	)
 
-set_target_properties(ArrayCopy PROPERTIES FOLDER "Tests")
+	set_target_properties(ArrayProxy PROPERTIES FOLDER "Tests")
+	target_link_libraries(ArrayProxy "${Vulkan_LIBRARIES}")
+endif()
