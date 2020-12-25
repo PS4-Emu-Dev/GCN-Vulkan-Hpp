@@ -15,6 +15,15 @@
 // VulkanHpp Tests : StructureChain
 //                   Compile-test for StructureChains
 
+// ignore warning 4189: local variable is initialized but not referenced
+#if defined( _MSC_VER )
+#  pragma warning( disable : 4189 )
+#elif defined( __GNUC__ )
+#  pragma GCC diagnostic ignored "-Wunused-variable"
+#else
+// unknow compiler... just ignore the warnings for yourselves ;)
+#endif
+
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 
 #include "vulkan/vulkan.hpp"
@@ -23,14 +32,6 @@
 
 static char const * AppName    = "StructureChain";
 static char const * EngineName = "Vulkan.hpp";
-
-#if defined( _MSC_VER )
-#  pragma warning( disable : 4189 )
-#elif defined( __GNUC__ )
-#  pragma GCC diagnostic ignored "-Wunused-variable"
-#else
-// unknow compiler... just ignore the warnings for yourselves ;)
-#endif
 
 VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
@@ -54,7 +55,9 @@ int main( int /*argc*/, char ** /*argv*/ )
 
     // some valid StructureChains
     vk::StructureChain<vk::PhysicalDeviceProperties2>                                                sc0;
-    vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceIDProperties>                sc1;
+    const vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceIDProperties>                sc1;
+    auto pdp = sc1.get<vk::PhysicalDeviceProperties2>();
+    unused( pdp );
     vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceMaintenance3Properties>      sc2;
     vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDevicePushDescriptorPropertiesKHR> sc3;
     vk::StructureChain<vk::PhysicalDeviceProperties2,

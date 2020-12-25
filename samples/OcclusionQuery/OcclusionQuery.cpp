@@ -15,6 +15,16 @@
 // VulkanHpp Samples : OcclusionQuery
 //                     Use occlusion query to determine if drawing renders any samples.
 
+#if defined( _MSC_VER )
+// no need to ignore any warnings with MSVC
+#elif defined( __GNUC__ )
+#  if ( 9 <= __GNUC__ )
+#    pragma GCC diagnostic ignored "-Winit-list-lifetime"
+#  endif
+#else
+// unknow compiler... just ignore the warnings for yourselves ;)
+#endif
+
 #include "../utils/geometries.hpp"
 #include "../utils/math.hpp"
 #include "../utils/shaders.hpp"
@@ -202,23 +212,25 @@ int main( int /*argc*/, char ** /*argv*/ )
 
     graphicsQueue.waitIdle();
 
-    uint64_t   samplesPassed[2];
-    vk::Result result = device->getQueryPoolResults( queryPool.get(),
-                                                     0,
-                                                     2,
-                                                     vk::ArrayProxy<uint64_t>( 4, samplesPassed ),
-                                                     sizeof( uint64_t ),
-                                                     vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait );
-    switch ( result )
+    vk::ResultValue<std::vector<uint64_t>> rv =
+      device->getQueryPoolResults<uint64_t>( *queryPool,
+                                   0,
+                                   2,
+                                   2 * sizeof( uint64_t ),
+                                   sizeof( uint64_t ),
+                                   vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait );
+   switch ( rv.result )
     {
       case vk::Result::eSuccess: break;
-      case vk::Result::eNotReady: std::cout << "vk::Device::getQueryPoolResults returned vk::Result::eNotReady !\n";
+      case vk::Result::eNotReady:
+        std::cout << "vk::Device::getQueryPoolResults returned vk::Result::eNotReady !\n";
+        break;
       default: assert( false );  // an unexpected result is returned !
     }
 
     std::cout << "vkGetQueryPoolResults data\n";
-    std::cout << "samples_passed[0] = " << samplesPassed[0] << "\n";
-    std::cout << "samples_passed[1] = " << samplesPassed[1] << "\n";
+    std::cout << "samples_passed[0] = " << rv.value[0] << "\n";
+    std::cout << "samples_passed[1] = " << rv.value[1] << "\n";
 
     /* Read back query result from buffer */
     uint64_t * samplesPassedPtr = static_cast<uint64_t *>(
@@ -233,11 +245,13 @@ int main( int /*argc*/, char ** /*argv*/ )
     while ( vk::Result::eTimeout == device->waitForFences( drawFence.get(), VK_TRUE, vk::su::FenceTimeout ) )
       ;
 
-    result = presentQueue.presentKHR( vk::PresentInfoKHR( {}, *swapChainData.swapChain, currentBuffer.value ) );
+    vk::Result result = presentQueue.presentKHR( vk::PresentInfoKHR( {}, *swapChainData.swapChain, currentBuffer.value ) );
     switch ( result )
     {
       case vk::Result::eSuccess: break;
-      case vk::Result::eSuboptimalKHR: std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
+      case vk::Result::eSuboptimalKHR:
+        std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
+        break;
       default: assert( false );  // an unexpected result is returned !
     }
     std::this_thread::sleep_for( std::chrono::milliseconds( 1000 ) );

@@ -15,6 +15,15 @@
 // VulkanHpp Samples : DeviceFunctions
 //                     Compile test on device functions
 
+// ignore warning 4189: local variable is initialized but not referenced
+#if defined( _MSC_VER )
+#  pragma warning( disable : 4189 )
+#elif defined( __GNUC__ )
+#  pragma GCC diagnostic ignored "-Wunused-variable"
+#else
+// unknow compiler... just ignore the warnings for yourselves ;)
+#endif
+
 #include "vulkan/vulkan.hpp"
 
 #include <iostream>
@@ -29,6 +38,9 @@ int main( int /*argc*/, char ** /*argv*/ )
     vk::ApplicationInfo appInfo( AppName, 1, EngineName, 1, VK_API_VERSION_1_1 );
     vk::UniqueInstance  instance       = vk::createInstanceUnique( vk::InstanceCreateInfo( {}, &appInfo ) );
     vk::PhysicalDevice  physicalDevice = instance->enumeratePhysicalDevices().front();
+
+    uint32_t propertyCount;
+    physicalDevice.getQueueFamilyProperties( &propertyCount, nullptr );
 
     // get the QueueFamilyProperties of the first PhysicalDevice
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
@@ -49,14 +61,13 @@ int main( int /*argc*/, char ** /*argv*/ )
     vk::UniqueDevice device =
       physicalDevice.createDeviceUnique( vk::DeviceCreateInfo( vk::DeviceCreateFlags(), deviceQueueCreateInfo ) );
 
-    std::vector<uint8_t> data;
-    device->getAccelerationStructureHandleNV<uint8_t>( {}, data, vk::DispatchLoaderDynamic() );
+    uint64_t handle = device->getAccelerationStructureHandleNV<uint8_t>( {}, vk::DispatchLoaderDynamic() );
 
     std::vector<vk::UniqueCommandBuffer>::allocator_type vectorAllocator;
     vk::UniqueCommandBuffer                              commandBuffer =
       std::move( device->allocateCommandBuffersUnique( {}, vectorAllocator, vk::DispatchLoaderStatic() ).front() );
 
-    commandBuffer->begin( nullptr );
+    commandBuffer->begin( vk::CommandBufferBeginInfo() );
 
     std::vector<vk::UniqueHandle<vk::CommandBuffer, vk::DispatchLoaderDynamic>>::allocator_type dynamicVectorAllocator;
     vk::UniqueHandle<vk::CommandBuffer, vk::DispatchLoaderDynamic> dynamicCommandBuffer = std::move(

@@ -13,6 +13,16 @@
 // limitations under the License.
 //
 
+#if defined( _MSC_VER )
+// no need to ignore any warnings with MSVC
+#elif defined( __clang__ )
+#  pragma clang diagnostic ignored "-Wmissing-braces"
+#elif defined( __GNUC__ )
+// no need to ignore any warnings with GCC
+#else
+// unknow compiler... just ignore the warnings for yourselves ;)
+#endif
+
 #include "utils.hpp"
 
 #include "vulkan/vulkan.hpp"
@@ -521,7 +531,7 @@ namespace vk
         }
         typeBits >>= 1;
       }
-      assert( typeIndex != ~0 );
+      assert( typeIndex != uint32_t(~0) );
       return typeIndex;
     }
 
@@ -1006,7 +1016,7 @@ namespace vk
 
     MonochromeImageGenerator::MonochromeImageGenerator( std::array<unsigned char, 3> const & rgb ) : m_rgb( rgb ) {}
 
-    void MonochromeImageGenerator::operator()( void * data, vk::Extent2D & extent ) const
+    void MonochromeImageGenerator::operator()( void * data, vk::Extent2D const & extent ) const
     {
       // fill in with the monochrome color
       unsigned char * pImageMemory = static_cast<unsigned char *>( data );
@@ -1031,10 +1041,10 @@ namespace vk
       assert( m_channels == 4 );
     }
 
-    void PixelsImageGenerator::operator()( void * data, vk::Extent2D & extent ) const
+    void PixelsImageGenerator::operator()( void * data, vk::Extent2D const & extent ) const
     {
       assert( extent == m_extent );
-      memcpy( data, m_pixels, m_extent.width * m_extent.height * m_channels );
+      memcpy( data, m_pixels, extent.width * extent.height * m_channels );
     }
 
     TextureData::TextureData( vk::PhysicalDevice const & physicalDevice,
@@ -1046,7 +1056,6 @@ namespace vk
                               bool                       forceStaging )
       : format( vk::Format::eR8G8B8A8Unorm ), extent( extent_ )
     {
-      vk::PhysicalDeviceMemoryProperties memoryProperties = physicalDevice.getMemoryProperties();
       vk::FormatProperties               formatProperties = physicalDevice.getFormatProperties( format );
 
       formatFeatureFlags |= vk::FormatFeatureFlagBits::eSampledImage;

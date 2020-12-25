@@ -27,7 +27,7 @@ int main( int /*argc*/, char ** /*argv*/ )
 {
   try
   {
-    vk::UniqueInstance instance = vk::su::createInstance( AppName, EngineName );
+    vk::UniqueInstance instance = vk::su::createInstance( AppName, EngineName, {}, {}, VK_API_VERSION_1_1 );
 #if !defined( NDEBUG )
     vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger( instance );
 #endif
@@ -49,7 +49,7 @@ int main( int /*argc*/, char ** /*argv*/ )
         std::cout << "\t\t" << j << " : " << groupProperties[i].physicalDevices[j].getProperties().deviceName << "\n";
       }
       std::cout << "\t"
-                << "subsetAllocation    = " << static_cast<bool>( groupProperties[i].subsetAllocation ) << "\n";
+                << "subsetAllocation    = " << !!groupProperties[i].subsetAllocation << "\n";
       std::cout << "\n";
 
       if ( 1 < groupProperties[i].physicalDeviceCount )

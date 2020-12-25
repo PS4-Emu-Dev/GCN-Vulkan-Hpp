@@ -15,6 +15,22 @@
 // VulkanHpp Samples : RayTracing
 //                     Simple sample how to ray trace using Vulkan
 
+#if defined( _MSC_VER )
+#  pragma warning( disable : 4201 )  // disable warning C4201: nonstandard extension used: nameless struct/union; needed
+                                     // to get glm/detail/type_vec?.hpp without warnings
+#elif defined( __clang__ )
+#  pragma clang diagnostic ignored "-Wmissing-braces"
+#  if ( 10 <= __clang_major__ )
+#    pragma clang diagnostic ignored "-Wdeprecated-volatile"  // to keep glm/detail/type_half.inl compiling
+#  endif
+#elif defined( __GNUC__ )
+#  if ( 9 <= __GNUC__ )
+#    pragma GCC diagnostic ignored "-Winit-list-lifetime"
+#  endif
+#else
+// unknow compiler... just ignore the warnings for yourselves ;)
+#endif
+
 // clang-format off
 // we need to include vulkan.hpp before glfw3.h, so stop clang-format to reorder them
 #include <vulkan/vulkan.hpp>
@@ -27,8 +43,6 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
-#pragma warning( disable : 4201 )  // disable warning C4201: nonstandard extension used: nameless struct/union; needed
-                                   // to get glm/detail/type_vec?.hpp without warnings
 #include "../utils/shaders.hpp"
 #include "../utils/utils.hpp"
 #include "CameraManipulator.hpp"
@@ -134,8 +148,7 @@ AccelerationStructureData
     std::vector<GeometryInstanceData> geometryInstanceData;
     for ( size_t i = 0; i < instances.size(); i++ )
     {
-      uint64_t accelerationStructureHandle = 0;
-      device->getAccelerationStructureHandleNV<uint64_t>( instances[i].first, accelerationStructureHandle );
+      uint64_t accelerationStructureHandle = device->getAccelerationStructureHandleNV<uint64_t>( instances[i].first );
 
       // For each instance we set its instance index to its index i in the instance vector, and set
       // its hit group index to 2*i. The hit group index defines which entry of the shader binding
@@ -543,11 +556,11 @@ static void cursorPosCallback( GLFWwindow * window, double mouseX, double mouseY
   vk::su::CameraManipulator::MouseButton mouseButton =
     ( glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_LEFT ) == GLFW_PRESS )
       ? vk::su::CameraManipulator::MouseButton::Left
-      : ( glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_MIDDLE ) == GLFW_PRESS )
-          ? vk::su::CameraManipulator::MouseButton::Middle
-          : ( glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS )
-              ? vk::su::CameraManipulator::MouseButton::Right
-              : vk::su::CameraManipulator::MouseButton::None;
+    : ( glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_MIDDLE ) == GLFW_PRESS )
+      ? vk::su::CameraManipulator::MouseButton::Middle
+    : ( glfwGetMouseButton( window, GLFW_MOUSE_BUTTON_RIGHT ) == GLFW_PRESS )
+      ? vk::su::CameraManipulator::MouseButton::Right
+      : vk::su::CameraManipulator::MouseButton::None;
   if ( mouseButton != vk::su::CameraManipulator::MouseButton::None )
   {
     vk::su::CameraManipulator::ModifierFlags modifiers;
@@ -638,6 +651,11 @@ glm::vec3 randomVec3( float minValue, float maxValue )
   return glm::vec3( randomDistribution( randomGenerator ),
                     randomDistribution( randomGenerator ),
                     randomDistribution( randomGenerator ) );
+}
+
+uint32_t roundUp( uint32_t value, uint32_t alignment )
+{
+  return ( ( value + alignment - 1 ) / alignment ) * alignment;
 }
 
 int main( int /*argc*/, char ** /*argv*/ )
@@ -768,7 +786,7 @@ int main( int /*argc*/, char ** /*argv*/ )
     std::vector<vk::UniqueFramebuffer> framebuffers = vk::su::createFramebuffers(
       device, renderPass, swapChainData.imageViews, depthBufferData.imageView, windowExtent );
 
-    bool samplerAnisotropy = supportedFeatures.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy;
+    bool samplerAnisotropy = !!supportedFeatures.get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy;
 
     // create some simple checkerboard textures, randomly sized and colored
     const size_t                     textureCount = 10;
@@ -1097,7 +1115,7 @@ int main( int /*argc*/, char ** /*argv*/ )
     uint32_t                           maxRecursionDepth = 2;
     vk::RayTracingPipelineCreateInfoNV rayTracingPipelineCreateInfo(
       {}, shaderStages, shaderGroups, maxRecursionDepth, *rayTracingPipelineLayout );
-    vk::UniquePipeline rayTracingPipeline;
+    vk::UniquePipeline                  rayTracingPipeline;
     vk::ResultValue<vk::UniquePipeline> rvPipeline =
       device->createRayTracingPipelineNVUnique( nullptr, rayTracingPipelineCreateInfo );
     switch ( rvPipeline.result )
@@ -1109,16 +1127,32 @@ int main( int /*argc*/, char ** /*argv*/ )
       default: assert( false );  // should never happen
     }
 
+    vk::StructureChain<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV> propertiesChain =
+      physicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV>();
+    uint32_t shaderGroupBaseAlignment =
+      propertiesChain.get<vk::PhysicalDeviceRayTracingPropertiesNV>().shaderGroupBaseAlignment;
     uint32_t shaderGroupHandleSize =
-      physicalDevice.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceRayTracingPropertiesNV>()
-        .get<vk::PhysicalDeviceRayTracingPropertiesNV>()
-        .shaderGroupHandleSize;
-    assert( !( shaderGroupHandleSize % 16 ) );
-    uint32_t shaderBindingTableSize = 5 * shaderGroupHandleSize;  // 1x raygen, 2x miss, 2x hitGroup
+      propertiesChain.get<vk::PhysicalDeviceRayTracingPropertiesNV>().shaderGroupHandleSize;
 
-    // with 5 shaders, we need a buffer to hold 5 shaderGroupHandles
+    uint32_t raygenShaderBindingOffset = 0;                      // starting with raygen
+    uint32_t raygenShaderTableSize     = shaderGroupHandleSize;  // one raygen shader
+    uint32_t missShaderBindingOffset =
+      raygenShaderBindingOffset + roundUp( raygenShaderTableSize, shaderGroupBaseAlignment );
+    uint32_t missShaderBindingStride = shaderGroupHandleSize;
+    uint32_t missShaderTableSize     = 2 * missShaderBindingStride;  // two raygen shaders
+    uint32_t hitShaderBindingOffset =
+      missShaderBindingOffset + roundUp( missShaderTableSize, shaderGroupBaseAlignment );
+    uint32_t hitShaderBindingStride = shaderGroupHandleSize;
+    uint32_t hitShaderTableSize     = 2 * hitShaderBindingStride;  // two hit shaders
+
+    uint32_t             shaderBindingTableSize = hitShaderBindingOffset + hitShaderTableSize;
     std::vector<uint8_t> shaderHandleStorage( shaderBindingTableSize );
-    device->getRayTracingShaderGroupHandlesNV<uint8_t>( *rayTracingPipeline, 0, 5, shaderHandleStorage );
+    (void)device->getRayTracingShaderGroupHandlesNV(
+      *rayTracingPipeline, 0, 1, raygenShaderTableSize, &shaderHandleStorage[raygenShaderBindingOffset] );
+    (void)device->getRayTracingShaderGroupHandlesNV(
+      *rayTracingPipeline, 1, 2, missShaderTableSize, &shaderHandleStorage[missShaderBindingOffset] );
+    (void)device->getRayTracingShaderGroupHandlesNV(
+      *rayTracingPipeline, 3, 2, hitShaderTableSize, &shaderHandleStorage[hitShaderBindingOffset] );
 
     vk::su::BufferData shaderBindingTableBufferData( physicalDevice,
                                                      device,
@@ -1250,20 +1284,14 @@ int main( int /*argc*/, char ** /*argv*/ )
                                            *rayTracingDescriptorSets[backBufferIndex],
                                            nullptr );
 
-        VkDeviceSize rayGenOffset   = 0;                      // starting with raygen
-        VkDeviceSize missOffset     = shaderGroupHandleSize;  // after raygen
-        VkDeviceSize missStride     = shaderGroupHandleSize;
-        VkDeviceSize hitGroupOffset = shaderGroupHandleSize + 2 * shaderGroupHandleSize;  // after 1x raygen and 2x miss
-        VkDeviceSize hitGroupStride = shaderGroupHandleSize;
-
         commandBuffer->traceRaysNV( *shaderBindingTableBufferData.buffer,
-                                    rayGenOffset,
+                                    raygenShaderBindingOffset,
                                     *shaderBindingTableBufferData.buffer,
-                                    missOffset,
-                                    missStride,
+                                    missShaderBindingOffset,
+                                    missShaderBindingStride,
                                     *shaderBindingTableBufferData.buffer,
-                                    hitGroupOffset,
-                                    hitGroupStride,
+                                    hitShaderBindingOffset,
+                                    hitShaderBindingStride,
                                     nullptr,
                                     0,
                                     0,
@@ -1294,7 +1322,9 @@ int main( int /*argc*/, char ** /*argv*/ )
       switch ( result )
       {
         case vk::Result::eSuccess: break;
-        case vk::Result::eSuboptimalKHR: std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
+        case vk::Result::eSuboptimalKHR:
+          std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
+          break;
         default: assert( false );  // an unexpected result is returned !
       }
       frameIndex = ( frameIndex + 1 ) % IMGUI_VK_QUEUED_FRAMES;
