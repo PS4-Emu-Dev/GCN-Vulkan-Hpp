@@ -83,7 +83,7 @@ namespace vk
     std::ostream & operator<<( std::ostream & os, LUID const & uuid )
     {
       os << std::setfill( '0' ) << std::hex;
-      for ( int j = 0; j < VK_LUID_SIZE; ++j )
+      for ( uint32_t j = 0; j < VK_LUID_SIZE; ++j )
       {
         os << std::setw( 2 ) << static_cast<uint32_t>( uuid.m_data[j] );
         if ( j == 3 || j == 5 )
@@ -101,13 +101,14 @@ int main( int /*argc*/, char ** /*argv*/ )
 {
   try
   {
-    vk::UniqueInstance instance = vk::su::createInstance( AppName, EngineName, {}, {}, VK_API_VERSION_1_1 );
+    vk::Instance instance = vk::su::createInstance( AppName, EngineName, {}, {}, VK_API_VERSION_1_1 );
 #if !defined( NDEBUG )
-    vk::UniqueDebugUtilsMessengerEXT debugUtilsMessenger = vk::su::createDebugUtilsMessenger( instance );
+    vk::DebugUtilsMessengerEXT debugUtilsMessenger =
+      instance.createDebugUtilsMessengerEXT( vk::su::makeDebugUtilsMessengerCreateInfoEXT() );
 #endif
 
     // enumerate the physicalDevices
-    std::vector<vk::PhysicalDevice> physicalDevices = instance->enumeratePhysicalDevices();
+    std::vector<vk::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
 
     /* VULKAN_KEY_START */
 
@@ -1266,6 +1267,9 @@ int main( int /*argc*/, char ** /*argv*/ )
     }
 
     /* VULKAN_KEY_END */
+
+    instance.destroyDebugUtilsMessengerEXT( debugUtilsMessenger );
+    instance.destroy();
   }
   catch ( vk::SystemError & err )
   {

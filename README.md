@@ -64,6 +64,10 @@ In some cases it might be necessary to move Vulkan-Hpp to a custom namespace. Th
 
 Vulkan-Hpp declares a class for all handles to ensure full type safety and to add support for member functions on handles. A member function has been added to a handle class for each function which accepts the corresponding handle as first parameter. Instead of `vkBindBufferMemory(device, ...)` one can write `device.bindBufferMemory(...)` or `vk::bindBufferMemory(device, ...)`.
 
+### namespace vk::raii
+
+There is an additional header named vulkan_raii.hpp generated. That header holds raii-compliant wrapper classes for the handle types. That is, for e.g. the handle type VkInstance, there's a raii-compliant wrapper vk::raii::Instance. Please have a look at the samples using those classes in the directory RAII_Samples.
+
 ### C/C++ Interop for Handles
 
 On 64-bit platforms Vulkan-Hpp supports implicit conversions between C++ Vulkan handles and C Vulkan handles. On 32-bit platforms all non-dispatchable handles are defined as `uint64_t`, thus preventing type-conversion checks at compile time which would catch assignments between incompatible handle types.. Due to that Vulkan-Hpp does not enable implicit conversion for 32-bit platforms by default and it is recommended to use a `static_cast` for the conversion like this: `VkDevice = static_cast<VkDevice>(cppDevice)` to prevent converting some arbitrary int to a handle or vice versa by accident. If you're developing your code on a 64-bit platform, but want compile your code for a 32-bit platform without adding the explicit casts you can define `VULKAN_HPP_TYPESAFE_CONVERSION` to 1 in your build system or before including `vulkan.hpp`. On 64-bit platforms this define is set to 1 by default and can be set to 0 to disable implicit conversions.
@@ -430,16 +434,17 @@ By default, `VULKAN_HPP_ASSERT_ON_RESULT` will be used for checking results when
 
 ### Extensions / Per Device function pointers
 
-The Vulkan loader exposes only the Vulkan core functions and a limited number of extensions. To use Vulkan-Hpp with extensions it's required to have either a library which provides stubs to all used Vulkan
-functions or to tell Vulkan-Hpp to dispatch those functions pointers. Vulkan-Hpp provides a per-function dispatch mechanism by accepting a dispatch class as last parameter in each function call. The dispatch
-class must provide a callable type for each used Vulkan function. Vulkan-Hpp provides one implementation, ```DispatchLoaderDynamic```, which fetches all function pointers known to the library.
+The Vulkan loader exposes only the Vulkan core functions and a limited number of extensions. To use Vulkan-Hpp with extensions it's required to have either a library which provides stubs to all used Vulkan functions or to tell Vulkan-Hpp to dispatch those functions pointers. Vulkan-Hpp provides a per-function dispatch mechanism by accepting a dispatch class as last parameter in each function call. The dispatch class must provide a callable type for each used Vulkan function. Vulkan-Hpp provides one implementation, ```DispatchLoaderDynamic```, which fetches all function pointers known to the library.
 
 ```c++
-// This dispatch class will fetch all function pointers through the passed instance
-vk::DispatchLoaderDynamic dldi(instance);
+// Providing a function pointer resolving vkGetInstanceProcAddr, just the few functions not depending an an instance or a device are fetched
+vk::DispatchLoaderDynamic dld( getInstanceProcAddr );
 
-// This dispatch class will fetch function pointers for the passed device if possible, else for the passed instance
-vk::DispatchLoaderDynamic dldid(instance, device);
+// Providing an already created VkInstance and a function pointer resolving vkGetInstanceProcAddr, all functions are fetched
+vk::DispatchLoaderDynamic dldi( instance, getInstanceProcAddr );
+
+// Providing also an already created VkDevice and optionally a function pointer resolving vkGetDeviceProcAddr, all functions are fetched as well, but now device-specific functions are fetched via vkDeviceGetProcAddr.
+vk::DispatchLoaderDynamic dldid( instance, getInstanceProcAddr, device );
 
 // Pass dispatch class to function call as last parameter
 device.getQueue(graphics_queue_family_index, 0, &graphics_queue, dldid);
@@ -518,7 +523,7 @@ This names the default dispatcher type, as specified by ```VULKAN_HPP_DEFAULT_DI
 
 #### VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
-If you not have defined your own ```VULKAN_HPP_DEFAULT_DISPATCHER```, and have ```VULKAN_HPP_DISPATCH_LOADER_DYNAMIC``` defined to be 1 (the default), you need to have the macro ```VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE``` exactly once in any of your source files to provide storage for that default dispatcher.
+If you have not defined your own ```VULKAN_HPP_DEFAULT_DISPATCHER```, and have ```VULKAN_HPP_DISPATCH_LOADER_DYNAMIC``` defined to be 1 (the default), you need to have the macro ```VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE``` exactly once in any of your source files to provide storage for that default dispatcher. ```VULKAN_HPP_STORAGE_API``` then controls the import/export status of that default dispatcher.
 
 #### VULKAN_HPP_DISABLE_ENHANCED_MODE
 
@@ -531,6 +536,10 @@ This either selects the dynamic (when it's 1) or the static (when it's not 1) Di
 #### VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL
 
 By default, a little helper class ```DynamicLoader``` is used to dynamically load the vulkan library. If you set it to something different than 1 before including vulkan.hpp, this helper is not available, and you need to explicitly provide your own loader type for the function ```DispatchLoaderDynamic::init()```.
+
+#### VULKAN_HPP_FLAGS_MASK_TYPE_AS_PUBLIC
+
+By default, the member ```m_mask``` of the ```Flags``` template class is private. This is to prevent accidentally setting a ```Flags``` with some inappropriate value. But it also prevents using a ```Flags```, or a structure holding a ```Flags```, to be used as a non-type template parameter. If you really need that functionality, and accept the reduced security, you can use this define to change the access specifier for m_mask from private to public, which allows using a ```Flags``` as a non-type template parameter.
 
 #### VULKAN_HPP_INLINE
 
@@ -555,6 +564,11 @@ By defining ```VULKAN_HPP_NO_SMART_HANDLE``` before including vulkan.hpp, the he
 ### VULKAN_HPP_NO_SPACESHIP_OPERATOR
 
 With C++20, the so-called spaceship-operator ```<=>``` is introduced. If that operator is supported, all the structs and classes in vulkan.hpp use the default implementation of it. As currently some implementations of this operator are very slow, and others seem to be incomplete, by defining ```VULKAN_HPP_NO_SPACESHIP_OPERATOR``` before including vulkan.hpp you can remove that operator from those structs and classes.
+
+#### VULKAN_HPP_STORAGE_API
+
+With this define you can specify whether the ```DispatchLoaderDynamic``` is imported or exported (see ```VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE```). If ```VULKAN_HPP_STORAGE_API``` is not defined externally, and ```VULKAN_HPP_STORAGE_SHARED``` is defined, depending on the ```VULKAN_HPP_STORAGE_SHARED_EXPORT``` being defined, ```VULKAN_HPP_STORAGE_API``` is either set to ```__declspec( dllexport )``` (for MSVC) / ```__attribute__( ( visibility( "default" ) ) )``` (for gcc or clang) or ```__declspec( dllimport )``` (for MSVC), respectively. For other compilers, you might specify the corresponding storage by defining ```VULKAN_HPP_STORAGE_API``` on your own.
+
 
 #### VULKAN_HPP_TYPESAFE_CONVERSION
 
@@ -587,7 +601,7 @@ All those elements will be removed around November 2021.
 Feel free to submit a PR to add to this list.
 
 - [Examples](https://github.com/jherico/vulkan) A port of Sascha Willems [examples](https://github.com/SaschaWillems/Vulkan) to Vulkan-Hpp 
-- [Vookoo](https://github.com/andy-thomason/Vookoo/) Stateful helper classes for Vulkan-Hpp, [Introduction Article](https://accu.org/index.php/journals/2380).
+- [Vookoo](https://github.com/andy-thomason/Vookoo/) Stateful helper classes for Vulkan-Hpp, [Introduction Article](https://accu.org/journals/overload/25/139/overload139.pdf#page=14).
 
 ## License
 

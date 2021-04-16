@@ -20,9 +20,6 @@
 #include <iostream>
 #include <sstream>
 
-static char const * AppName    = "InstanceVersion";
-static char const * EngineName = "Vulkan.hpp";
-
 std::string decodeAPIVersion( uint32_t apiVersion )
 {
   return std::to_string( VK_VERSION_MAJOR( apiVersion ) ) + "." + std::to_string( VK_VERSION_MINOR( apiVersion ) ) +
@@ -36,7 +33,7 @@ int main( int /*argc*/, char ** /*argv*/ )
     /* VULKAN_KEY_START */
 
     uint32_t apiVersion = vk::enumerateInstanceVersion();
-    std::cout << "APIVersion = " << decodeAPIVersion( apiVersion );
+    std::cout << "APIVersion = " << decodeAPIVersion( apiVersion ) << std::endl;
 
     /* VULKAN_KEY_END */
   }

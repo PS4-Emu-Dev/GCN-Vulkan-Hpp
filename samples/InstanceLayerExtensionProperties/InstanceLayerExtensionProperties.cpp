@@ -21,9 +21,6 @@
 #include <sstream>
 #include <vector>
 
-static char const * AppName    = "InstanceLayerExtensionProperties";
-static char const * EngineName = "Vulkan.hpp";
-
 struct PropertyData
 {
   PropertyData( vk::LayerProperties const &                  layerProperties_,
@@ -50,7 +47,7 @@ int main( int /*argc*/, char ** /*argv*/ )
     {
       std::vector<vk::ExtensionProperties> extensionProperties =
         vk::enumerateInstanceExtensionProperties( vk::Optional<const std::string>( layerProperty.layerName ) );
-      propertyData.push_back( PropertyData( layerProperty, extensionProperties ) );
+      propertyData.emplace_back( layerProperty, extensionProperties );
     }
 
     /* VULKAN_KEY_END */
@@ -65,9 +62,10 @@ int main( int /*argc*/, char ** /*argv*/ )
       for ( auto const & pd : propertyData )
       {
         std::cout << pd.layerProperties.layerName << std::endl;
+        std::cout << "Layer Extensions: ";
         if ( pd.extensionProperties.empty() )
         {
-          std::cout << "Layer Extension: None";
+          std::cout << "None";
         }
         else
         {
